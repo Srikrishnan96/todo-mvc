@@ -1,0 +1,6 @@
+.clickable-text {
+    color: dodgerblue;
+}
+.clickable-text:hover {
+    text-decoration: underline;
+}
