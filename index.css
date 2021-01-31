@@ -1,6 +1,74 @@
+body {
+    font-family: 'Barlow', sans-serif;
+}
+button {
+    font-family: 'Barlow', sans-serif;
+    background-color: white;
+    border: 1px solid black;
+    border-radius: 5px;
+}
+
+.green-color {
+    color: #5cb85c;
+}
+
+.material-icons {
+    display: flex;
+    user-select: none;
+}
+.material-icons:hover {
+    cursor: pointer;
+    color: #DCDCDC;
+}
+.material-icons:active {
+    color: #808080;
+}
+
+
 .clickable-text {
     color: dodgerblue;
 }
 .clickable-text:hover {
     text-decoration: underline;
+}
+
+
+#add-task-input {
+    width: 376px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 18px;
+    border: none;
+    border-bottom: 1px solid black;
+    outline: none;
+    margin: 20px;
+}
+
+#task-layer-level-nav {
+    margin-top: 20px;
+    margin-left: 20px;
+}
+.layer-level-name {
+    font-size: 20px;
+}
+.layer-level-name:hover {
+    cursor: pointer;
+    color: #808080;
+}
+.layer-level-divider {
+    font-size: 20px;
+    vertical-align: center;
+    margin-right: 5px;
+    margin-left: 5px;
+    color: #808080;
+}
+
+#task-list {
+    margin-left: 25px;
+    margin-top: 10px;
+}
+.task-container {
+    max-width: 450px;
+    display: flex;
+    margin-bottom: 10px;
+    justify-content: space-around;
 }

@@ -4,22 +4,17 @@ var COMPLETED_TASK_STATUS = "completed";
 var INCOMPLETE_TASK_STATUS = "incomplete";
 
 
-function TaskModel(name, status, superTaskID = null, subTaskList = null, ID = null) {
-    var ID = ID || Date.now();
+function TaskModel(name, superTaskID, status = INCOMPLETE_TASK_STATUS, ID) {
+    var ID = ID || Date.now().toString();
     var name = name;
     var status = status;
     var superTaskID = superTaskID;
-    var subTaskList = subTaskList;
 
-    this.setTaskName = function(newTaskName) {
+    this.setName = function(newTaskName) {
         name = newTaskName;
     };
-    this.setTaskStatus = function(newStatus) {
+    this.setStatus = function(newStatus) {
         status = newStatus;
-    };
-    this.addToSubTaskList = function(task) {
-        subTaskList.addTask(task.getID());
-        localStorageManager.addTask(task);
     };
 
     this.getID = function() {
@@ -34,68 +29,58 @@ function TaskModel(name, status, superTaskID = null, subTaskList = null, ID = nu
     this.getSuperTaskID = function() {
         return superTaskID;
     };
-    this.getSubTaskList = function() {
-        return
+}
+
+function AppModel() {
+    if(localStorage.getItem("HOME") === null ) localStorage.setItem("HOME", JSON.stringify([]));
+
+    function deleteSubTaskRecursively(taskID) {
+        var subTasks = localStorage.getItem(`${taskID}`);
+        if(subTasks !== null) {
+            var subTasksArr = JSON.parse(subTasks);
+            for(var index = 0; index < subTasksArr.length; index++) {
+                deleteSubTaskRecursively(subTasksArr[index].ID);
+            }
+        }
+        localStorage.removeItem(taskID);
+    }
+
+    this.addTask = function(superTaskID, taskName) {
+        var task = new TaskModel(taskName, superTaskID);
+        var taskList = JSON.parse(localStorage.getItem(superTaskID));
+        var ID = task.getID();
+        var name = task.getName();
+        var status = task.getStatus();
+        var superTaskid = task.getSuperTaskID();
+        var taskData = {ID: ID, name: name, status: status, superTaskID: superTaskid};
+
+        if(!taskList) taskList = [];
+        taskList.push(taskData);
+        localStorage.setItem(`${superTaskID}`, JSON.stringify(taskList));
+
+        return taskData;
     };
+    this.updateTask = function(updatedTask) {
+        var superTaskID = updatedTask.superTaskID;
+        var taskContainerList = JSON.parse(localStorage.getItem(superTaskID));
+        var taskIndex = taskContainerList.findIndex(function (task) {
+            return task.ID === updatedTask.ID;
+        });
 
-    this.intiSubTaskList = function(listOfSubTasks = null) {
-        var taskList = new TaskList(ID);
-        if(listOfSubTasks !== null) listOfSubTasks.forEach(function(task) { taskList.addTask(task.ID) });
-
-        subTaskList = taskList;
-    }
-}
-Task.makeObjectForExistingTask = function(ID, name, status, superTask, subTasks) {
-
-}
-
-function TaskListModel(superTaskID) {
-    var tasks = [];
-    var superTaskID = superTaskID;
-
-    this.addTask = function(taskID) {
-        tasks.push(taskID);
-    }
-    this.removeTask = function() {
-
-    }
-}
-
-var localStorageManager = {
-        addTask: function(task) {
-            var superTaskID = task.getSuperTaskID();
-            var taskList = superTaskID === null ? JSON.parse(localStorage.getItem("HOME")) :
-                JSON.parse(localStorage.getItem(`${superTaskID}`));
-            var ID = task.getID();
-            var name = task.getName();
-            var status = task.getStatus();
-
-            taskList.push({ID: ID, name: name, status: status, superTaskID: superTaskID});
-            localStorage.setItem(`${superTaskID}`, JSON.stringify(taskList));
-        },
-        updateTask: function(task) {
-            var superTaskID = task.getSuperTaskID();
-            var taskContainerList = superTaskID === null ? JSON.parse("HOME") :
-                JSON.parse(`${superTaskID}`);
-            var ID = task.getID();
-            var name = task.getName();
-            var status = task.getStatus();
-            var taskIndex = taskContainerList.findIndex(function(task) {
-                return task.ID === ID;
-            });
-
-            taskContainerList[taskIndex] = {ID: ID, name: name, status: status, superTaskID: superTaskID};
-            localStorage.setItem(`${superTaskID}`, taskContainerList);
-        },
-        removeTask: function(task) {
-            var superTaskID = task.getSuperTaskID() !== null ? task.getSuperTaskID() : "HOME";
-            var taskContainerList = JSON.parse(`${superTaskID}`);
-            var ID = task.ID;
-            var newTaskContainerList = taskContainerList.filter(function(task) {
-                return task.ID !== ID;
-            });
-
-            localStorage.setItem(`${superTaskID}`, newTaskContainerList);
-            localStorage.removeItem(`${ID}`);
-        },
+        taskContainerList[taskIndex] = updatedTask;
+        localStorage.setItem(superTaskID, JSON.stringify(taskContainerList));
     };
+    this.deleteTask = function(superTaskID, taskID) {
+        var taskContainerList = JSON.parse(localStorage.getItem(superTaskID));
+        var newTaskContainerList = taskContainerList.filter(function(task) {
+            return task.ID !== taskID;
+        });
+
+        if(newTaskContainerList.length <= 0) newTaskContainerList = null;
+        localStorage.setItem(superTaskID, JSON.stringify(newTaskContainerList));
+        deleteSubTaskRecursively(taskID);
+    };
+    this.getTasks = function(superTaskID) {
+        return JSON.parse(localStorage.getItem(superTaskID));
+    };
+}
