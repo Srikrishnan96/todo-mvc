@@ -1,10 +1,5 @@
-// APP CONSTANTS
-var HOME = "HOME";
-var COMPLETED_TASK_STATUS = "completed";
-var INCOMPLETE_TASK_STATUS = "incomplete";
 
-
-function TaskModel(name, superTaskID, status = INCOMPLETE_TASK_STATUS, ID) {
+function TaskModel(name, superTaskID, status = "incomplete", ID) {
     var ID = ID || Date.now().toString();
     var name = name;
     var status = status;
