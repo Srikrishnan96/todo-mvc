@@ -43,8 +43,15 @@ function AppView(taskListController) {
         var name = task.name;
         var superTaskID = task.superTaskID;
         var status = task.status;
+        var hasSubTasks = task.hasSubTasks;
 
-        taskListController.updateTask({ID: ID, name: name, status: status, superTaskID: superTaskID});
+        taskListController.updateTask({
+            ID: ID,
+            name: name,
+            status: status,
+            superTaskID: superTaskID,
+            hasSubTasks: hasSubTasks,
+        });
     }
 
     this.initAppView = function() {
@@ -187,11 +194,12 @@ TaskLayerBreadCrumbView.prototype.render = function() {
 
 
 
-function TaskView(ID, name, status, superTaskID, appView) {
+function TaskView(ID, name, status, superTaskID, hasSubTasks, appView) {
     this.ID = ID
     this.name = name;
     this.status = status;
     this.superTaskID = superTaskID;
+    this.hasSubTasks = hasSubTasks;
     this.appView = appView;
     this.node = null;
 }
@@ -268,6 +276,7 @@ TaskView.prototype.render = function() {
     taskStatusSwitchButton.className = "task-status-switch";
     taskStatusSwitchButton.addEventListener("click", this.statusSwitchHandler.bind(this));
     taskStatusSwitchButton.innerText = this.appView.helpers.STATUS_SWITCH_NAME[this.status];
+    if(this.hasSubTasks) taskStatusSwitchButton.disabled = true;
 
     taskComponent.appendChild(addSubTasksNode);
     taskComponent.appendChild(taskName);
@@ -293,7 +302,7 @@ MakeReRenderable(TaskListView);
 
 TaskListView.prototype.onAddTask = function(taskName) {
     var task = this.appView.putNewTask(this.listSuperTaskID, taskName);
-    var taskComponent = new TaskView(task.ID, task.name, task.status, task.superTaskID, this.appView);
+    var taskComponent = new TaskView(task.ID, task.name, task.status, task.superTaskID, task.hasSubTasks, this.appView);
 
     this.tasks.push(task);
     this.node.appendChild(taskComponent.render());
@@ -330,7 +339,7 @@ TaskListView.prototype.render = function() {
     taskListComponent.setAttribute('reference-ID', 'task-list');
 
     taskListArr.forEach((function(task) {
-        var taskComponent = new TaskView(task.ID, task.name, task.status, task.superTaskID, this.appView);
+        var taskComponent = new TaskView(task.ID, task.name, task.status, task.superTaskID, task.hasSubTasks, this.appView);
         taskListComponent.appendChild(taskComponent.render());
     }).bind(this));
     this.node = taskListComponent;
