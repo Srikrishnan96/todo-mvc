@@ -1,8 +1,10 @@
 
 
-function AppView(taskListController) {
-    var taskListViewInstance = new TaskListView("HOME", this);
-    var taskLayerBreadCrumbViewInstance = new TaskLayerBreadCrumbView(this);
+function AppView() {
+    var incompleteTaskListView;
+    var completedTaskListView;
+    var taskLayerBreadCrumbViewInstance;
+    var controllerHelpers = null;
 
     this.helpers = {
         INVERSE: {
@@ -14,29 +16,25 @@ function AppView(taskListController) {
             incomplete: "Mark completed"
         }
     }
-    this.getTaskListViewInstance = function() {
-        return taskListViewInstance;
-    }
-    this.getTaskLayerBreadCrumbViewInstance = function() {
-        return taskLayerBreadCrumbViewInstance;
-    }
 
     this.fetchTasks = function(taskID) {
-        return taskListController.fetchTasks(taskID);
+        return controllerHelpers.fetchTasks(taskID);
     }
     this.fetchTasksAndUpdateView = function(taskID, taskName) {
-        var subTaskList = taskListController.fetchTasks(taskID);
+
+        var subTaskList = controllerHelpers.fetchTasks(taskID);
 
         if(!subTaskList) return;
 
-        taskListViewInstance.setTasks(subTaskList);
+        incompleteTaskListView.setTasks(subTaskList);
+        completedTaskListView.setTasks(subTaskList);
         taskLayerBreadCrumbViewInstance.addLayer(taskID, taskName);
     }
     this.deleteTask = function(superTaskID, taskID) {
-        taskListController.deleteTask(superTaskID, taskID);
+        controllerHelpers.deleteTask(superTaskID, taskID);
     }
     this.putNewTask = function(superTaskID, taskName) {
-        return taskListController.putNewTask(superTaskID, taskName);
+        return controllerHelpers.putNewTask(superTaskID, taskName);
     }
     this.updateTask = function(task) {
         var ID = task.ID;
@@ -45,7 +43,7 @@ function AppView(taskListController) {
         var status = task.status;
         var hasSubTasks = task.hasSubTasks;
 
-        taskListController.updateTask({
+        controllerHelpers.updateTask({
             ID: ID,
             name: name,
             status: status,
@@ -54,17 +52,50 @@ function AppView(taskListController) {
         });
     }
 
-    this.initAppView = function() {
-        var appComponent = document.getElementById("app");
-        var homeTaskList = taskListController.fetchTasks("HOME");
+    this.onSwitchStatus = function(task, taskNode) {
+        if(task.status === "completed") {
+            incompleteTaskListView.removeTaskNode(task.ID, taskNode);
+            completedTaskListView.appendTaskNode(task, taskNode);
+        } else {
+            completedTaskListView.removeTaskNode(task.ID, taskNode);
+            incompleteTaskListView.appendTaskNode(task, taskNode);
+        }
+    }
+    this.addBreadCrumbLayer = function(taskID, taskName) {
+        taskLayerBreadCrumbViewInstance.addLayer(taskID, taskName);
+    }
+    this.newSubListComponent = function(superTaskID) {
+        incompleteTaskListView.newSubListComponent(superTaskID);
+        completedTaskListView.newSubListComponent(superTaskID);
+    }
 
-        taskListViewInstance = new TaskListView("HOME", homeTaskList, this);
-        taskLayerBreadCrumbViewInstance = new TaskLayerBreadCrumbView({ID: "HOME", name: "HOME"}, this);
+    this.initAppView = function(controllerHelperFunctions) {
+        var appComponent = document.getElementById("app");
+        var homeTaskList = controllerHelperFunctions.fetchTasks("HOME");
+
+        controllerHelpers = controllerHelperFunctions;
+
+        var appDataHelpers = {
+            fetchTasks: this.fetchTasks,
+            fetchTasksAndUpdateView: this.fetchTasksAndUpdateView,
+            deleteTask: this.deleteTask,
+            putNewTask: this.putNewTask,
+            updateTask: this.updateTask,
+            onSwitchStatus: this.onSwitchStatus,
+            statusHelpers: this.helpers,
+            addBreadCrumbLayer: this.addBreadCrumbLayer,
+            newSubListComponent: this.newSubListComponent,
+        };
+
+        incompleteTaskListView = new TaskListView("incomplete","HOME", homeTaskList, appDataHelpers);
+        completedTaskListView = new TaskListView("completed","HOME", homeTaskList, appDataHelpers);
+        taskLayerBreadCrumbViewInstance = new TaskLayerBreadCrumbView({ID: "HOME", name: "HOME"}, appDataHelpers);
 
         appComponent.appendChild(appHeadingView());
         appComponent.appendChild(taskLayerBreadCrumbViewInstance.render());
-        appComponent.appendChild(addTaskView(this));
-        appComponent.appendChild(taskListViewInstance.render());
+        appComponent.appendChild(addTaskView(incompleteTaskListView.onAddTask.bind(incompleteTaskListView)));
+        appComponent.appendChild(incompleteTaskListView.render());
+        appComponent.appendChild(completedTaskListView.render());
     }
 }
 
@@ -87,7 +118,7 @@ function appHeadingView() {
 
     return headingComponent;
 }
-function addTaskView(appView) {
+function addTaskView(onAddTask) {
     var addTaskComponent = document.createElement('div');
     var addTaskInput = document.createElement('input');
     var addTaskButton = document.createElement('button');
@@ -96,20 +127,18 @@ function addTaskView(appView) {
         if(e.keyCode !== 13) return;
 
         var taskName = e.target.value;
-        var taskListViewInstance = appView.getTaskListViewInstance();
 
         if(taskName.trim() === "") return;
         e.target.value = "";
-        taskListViewInstance.onAddTask(taskName);
+        onAddTask(taskName);
     }
     function buttonHandler(e) {
         var taskName = e.target.previousSibling.value;
-        var taskListViewInstance = appView.getTaskListViewInstance();
 
         if(taskName.trim() === "") return;
 
         e.target.previousSibling.value = "";
-        taskListViewInstance.onAddTask(taskName);
+        onAddTask(taskName);
     }
 
     addTaskButton.id = "add-task-button";
@@ -194,29 +223,31 @@ TaskLayerBreadCrumbView.prototype.render = function() {
 
 
 
-function TaskView(ID, name, status, superTaskID, hasSubTasks, appView) {
+function TaskView(ID, name, status, superTaskID, hasSubTasks, onRemoveTask, onSwitchStatus, helpersFromAppView) {
     this.ID = ID
     this.name = name;
     this.status = status;
     this.superTaskID = superTaskID;
     this.hasSubTasks = hasSubTasks;
-    this.appView = appView;
+    this.onRemoveTask = onRemoveTask;
+    this.onSwitchStatus = onSwitchStatus;
+    this.helpersFromAppView = helpersFromAppView;
     this.node = null;
 }
 //Making TaskLayerBreadCrumbView Component a ReRenderable
 MakeReRenderable(TaskView);
 
 TaskView.prototype.removeHandler = function(e) {
-    this.appView.getTaskListViewInstance().onRemoveTask(this.ID, e.target.parentNode);
+    this.onRemoveTask(this.ID, this.node);
 }
 TaskView.prototype.statusSwitchHandler = function(e) {
-    this.status = this.appView.helpers.INVERSE[this.status];
-    this.appView.updateTask(this);
-    this.appView.getTaskListViewInstance().onSwitchStatus(this.ID, this.status);
+    this.status = this.helpersFromAppView.statusHelpers.INVERSE[this.status];
+    this.helpersFromAppView.updateTask(this);
+    this.onSwitchStatus(this.ID, this.status, this.node);
     this.reRender();
 }
 TaskView.prototype.getSubTaskListHandler = function(e) {
-    this.appView.fetchTasksAndUpdateView(this.ID, this.name);
+    this.helpersFromAppView.fetchTasksAndUpdateView(this.ID, this.name);
 }
 TaskView.prototype.editHandler = function(e) {
     var editInput = document.createElement("input");
@@ -226,7 +257,7 @@ TaskView.prototype.editHandler = function(e) {
     editInput.addEventListener('change', (function(evt) {
         if(evt.target.value.trim() !== "") {
             this.name = evt.target.value;
-            this.appView.updateTask(this);
+            this.helpersFromAppView.updateTask(this);
             nameNode.innerText = evt.target.value;
         }
         evt.target.replaceWith(nameNode);
@@ -235,13 +266,13 @@ TaskView.prototype.editHandler = function(e) {
     editInput.focus();
 }
 TaskView.prototype.addSubTaskHandler = function() {
-    var hasSubTasks = !!this.appView.fetchTasks(this.ID);
+    var hasSubTasks = !!this.helpersFromAppView.fetchTasks(this.ID);
     var addTaskInput = document.querySelector("[reference-ID=add-task-input]");
     if(hasSubTasks) {
-        this.appView.fetchTasksAndUpdateView(this.ID, this.name);
+        this.helpersFromAppView.fetchTasksAndUpdateView(this.ID, this.name);
     } else {
-        this.appView.getTaskListViewInstance().newSubListComponent(this.ID);
-        this.appView.getTaskLayerBreadCrumbViewInstance().addLayer(this.ID, this.name);
+        this.helpersFromAppView.newSubListComponent(this.ID);
+        this.helpersFromAppView.addBreadCrumbLayer(this.ID, this.name);
     }
     addTaskInput.focus();
 }
@@ -275,7 +306,7 @@ TaskView.prototype.render = function() {
 
     taskStatusSwitchButton.className = "task-status-switch";
     taskStatusSwitchButton.addEventListener("click", this.statusSwitchHandler.bind(this));
-    taskStatusSwitchButton.innerText = this.appView.helpers.STATUS_SWITCH_NAME[this.status];
+    taskStatusSwitchButton.innerText = this.helpersFromAppView.statusHelpers.STATUS_SWITCH_NAME[this.status];
     if(this.hasSubTasks) taskStatusSwitchButton.disabled = true;
 
     taskComponent.appendChild(addSubTasksNode);
@@ -291,39 +322,66 @@ TaskView.prototype.render = function() {
 
 
 
-function TaskListView(intiSuperTaskValue, tasks, appView) {
+function TaskListView(listStatus, intiSuperTaskValue, initialTasks, helpersFromAppView) {
+    this.listStatus = listStatus;
     this.listSuperTaskID = intiSuperTaskValue;
-    this.tasks = tasks;
+    this.tasks = initialTasks.filter(function(task) {
+        return task.status === listStatus;
+    });
     this.node = null;
-    this.appView = appView;
+    this.helpersFromAppView = helpersFromAppView;
 }
 //Making TaskLayerBreadCrumbView Component a ReRenderable
 MakeReRenderable(TaskListView);
 
 TaskListView.prototype.onAddTask = function(taskName) {
-    var task = this.appView.putNewTask(this.listSuperTaskID, taskName);
-    var taskComponent = new TaskView(task.ID, task.name, task.status, task.superTaskID, task.hasSubTasks, this.appView);
+    var task = this.helpersFromAppView.putNewTask(this.listSuperTaskID, taskName);
+    var taskComponent = new TaskView(
+        task.ID,
+        task.name,
+        task.status,
+        task.superTaskID,
+        task.hasSubTasks,
+        this.onRemoveTask.bind(this),
+        this.onSwitchStatus.bind(this),
+        this.helpersFromAppView
+    );
 
     this.tasks.push(task);
     this.node.appendChild(taskComponent.render());
 }
 TaskListView.prototype.onRemoveTask = function(taskID, taskComponent) {
-    this.appView.deleteTask(this.listSuperTaskID, taskID);
+    this.helpersFromAppView.deleteTask(this.listSuperTaskID, taskID);
     this.tasks.filter(function(task) {
         return task.ID !== taskID;
     });
     this.node.removeChild(taskComponent);
 }
-TaskListView.prototype.onSwitchStatus = function(taskID, newStatus) {
+TaskListView.prototype.onSwitchStatus = function(taskID, newStatus, taskComponent) {
     var taskIndex = this.tasks.findIndex(function(task) {
         return task.ID = taskID;
     });
     this.tasks[taskIndex].status = newStatus;
+    this.helpersFromAppView.onSwitchStatus(this.tasks[taskIndex], taskComponent);
+}
+TaskListView.prototype.appendTaskNode = function(task, taskNode) {
+    this.tasks.push(task);
+    this.node.appendChild(taskNode);
+}
+TaskListView.prototype.removeTaskNode = function(taskID, taskNode) {
+    this.tasks.filter(function(task) {
+        return task.ID !== taskID;
+    });
+    this.node.removeChild(taskNode);
 }
 TaskListView.prototype.setTasks = function(newTasks) {
     if(!newTasks.length) return;
     this.listSuperTaskID = newTasks[0].superTaskID;
-    this.tasks = newTasks;
+
+    this.tasks = newTasks.filter((function(task) {
+        return task.status === this.listStatus;
+    }).bind(this));
+
     this.reRender();
 }
 TaskListView.prototype.newSubListComponent = function(superTaskID) {
@@ -333,13 +391,27 @@ TaskListView.prototype.newSubListComponent = function(superTaskID) {
 }
 TaskListView.prototype.render = function() {
     var taskListComponent = document.createElement('div');
+    var taskListHeading = document.createElement("h4");
     var taskListArr = this.tasks;
 
     taskListComponent.id = 'task-list';
     taskListComponent.setAttribute('reference-ID', 'task-list');
 
+    taskListHeading.innerText = this.listStatus.toUpperCase();
+
+    taskListComponent.appendChild(taskListHeading);
+
     taskListArr.forEach((function(task) {
-        var taskComponent = new TaskView(task.ID, task.name, task.status, task.superTaskID, task.hasSubTasks, this.appView);
+        var taskComponent = new TaskView(
+            task.ID,
+            task.name,
+            task.status,
+            task.superTaskID,
+            task.hasSubTasks,
+            this.onRemoveTask.bind(this),
+            this.onSwitchStatus.bind(this),
+            this.helpersFromAppView,
+        );
         taskListComponent.appendChild(taskComponent.render());
     }).bind(this));
     this.node = taskListComponent;
