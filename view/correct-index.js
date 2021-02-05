@@ -1,89 +1,3 @@
-var STATUS_SWITCH_NAME = {
-    completed: "Mark incomplete",
-    incomplete: "Mark completed"
-}
-
-function TaskView() {
-
-    this.removeTaskHandler = null;
-    this.switchStatusHandler = null;
-    this.addSubTasksHandler = null;
-    this.editTaskNameHandler = null;
-    this.getSubTasksHandler = null;
-
-    this.switchStatus = function(taskComponent, newStatus) {
-        var statusSwitchButton = taskComponent.querySelector(".task-status-switch");
-
-        taskComponent.setAttribute("status", newStatus);
-        statusSwitchButton.innerHTML = STATUS_SWITCH_NAME[newStatus];
-    }
-    this.addSubTask = function(taskComponent) {
-        var taskNameNode = taskComponent.querySelector(".task-name");
-
-        // taskNameNode.ad
-    }
-    this.editTaskName = function(taskComponent, newName) {
-        var taskNameNode = taskComponent.querySelector(".task-name");
-
-        taskComponent.setAttribute("task-name", newName);
-        taskNameNode.innerText = newName;
-    }
-
-    this.loadEventHandlers = function(handlers) {
-        this.removeTaskHandler = handlers.removeTask;
-        this.switchStatusHandler = handlers.switchStatus;
-        this.addSubTaskHandler = handlers.addSubTask;
-        this.editTaskNameHandler = handlers.editTaskName;
-        this.getSubTasksHandler = handlers.getSubTasks;
-    }
-
-    this.getComponent = function(ID, taskName, status, superTaskID, hasSubTasks) {
-        var taskComponent = document.createElement("div");
-        var addSubTasksNode = document.createElement("span");
-        var taskName = document.createElement("span");
-        var taskRemoveButton = document.createElement("button");
-        var taskStatusSwitchButton = document.createElement("button");
-        var taskNameEditButton = document.createElement("button");
-
-        taskComponent.className = "task-container";
-        taskComponent.setAttribute("task-ID", ID);
-        taskComponent.setAttribute("super-task-ID", superTaskID);
-        taskComponent.setAttribute("task-name", taskName);
-        taskComponent.setAttribute("task-status", status);
-        taskComponent.setAttribute("has-sub-tasks", hasSubTasks);
-
-        addSubTasksNode.innerText = 'add';
-        addSubTasksNode.className = 'material-icons';
-        addSubTasksNode.addEventListener('click', this.addSubTaskHandler);
-
-        taskName.className = "task-name";
-        if(hasSubTasks) taskName.addEventListener("click", this.getSubTasksHandler);
-        taskName.innerText = taskName;
-
-        taskNameEditButton.className = "task-edit";
-        taskNameEditButton.addEventListener("click", this.editTaskNameHandler);
-        taskNameEditButton.innerText = "Edit";
-
-        taskRemoveButton.className = "task-remove";
-        taskRemoveButton.addEventListener("click", this.removeTaskHandler);
-        taskRemoveButton.innerText = "Remove";
-
-        taskStatusSwitchButton.className = "task-status-switch";
-        taskStatusSwitchButton.addEventListener("click", this.switchStatusHandler);
-        taskStatusSwitchButton.innerText = STATUS_SWITCH_NAME[this.status];
-        if(this.hasSubTasks) taskStatusSwitchButton.disabled = true;
-
-        taskComponent.appendChild(addSubTasksNode);
-        taskComponent.appendChild(taskName);
-        taskComponent.appendChild(taskNameEditButton);
-        taskComponent.appendChild(taskRemoveButton);
-        taskComponent.appendChild(taskStatusSwitchButton);
-
-        return taskComponent;
-    }
-}
-
-
 
 
 function AppView() {
@@ -357,8 +271,6 @@ TaskView.prototype.addSubTaskHandler = function() {
     if(hasSubTasks) {
         this.helpersFromAppView.fetchTasksAndUpdateView(this.ID, this.name);
     } else {
-        this.hasSubTasks = true;
-        this.helpersFromAppView.updateTask(this);
         this.helpersFromAppView.newSubListComponent(this.ID);
         this.helpersFromAppView.addBreadCrumbLayer(this.ID, this.name);
     }
