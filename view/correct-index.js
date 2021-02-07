@@ -249,6 +249,43 @@ TaskView.prototype.statusSwitchHandler = function(e) {
 TaskView.prototype.getSubTaskListHandler = function(e) {
     this.helpersFromAppView.fetchTasksAndUpdateView(this.ID, this.name);
 }
+
+const onEditButtonClick = function(e) {
+    var nameNode = e.target.previousSibling;
+    var name = nameNode.innerText;
+
+    taskView.renderEditorInput(nameNode);
+}
+const onEditorInputChange = function(e) {
+    var inputNode = e.target;
+    var newName = inputNode.value;
+
+    if(newName.trim() !== "") {
+        taskView.updateTask("name", newName, inputNode.parentNode.getAttribute("task-ID"));
+    }
+    taskView.renderNewNameNode(inputNode);
+}
+const renderEditorInput = function(nameNode) {
+    var editInput = document.createElement("input");
+
+    editInput.value = nameNode.innerText;
+    editInput.addEventListener('change', taskController.onEditorInputChange);
+
+    nameNode.replaceWith(editInput);
+}
+const renderNewNameNode = function(inputNode) {
+    var taskComponent = inputNode.parent;
+    var newName = inputNode.value.trim() === "" ? taskComponent.getAttribute("task-name") : inputNode.value;
+    var newNameNode = document.createElement("span");
+
+    newNameNode.innerText = newName;
+    newNameNode.addEventListener("click", this.GETSUBTASKS);
+    newNameNode.className = "task-name";
+
+    taskComponent.setAttribute("task-name", newName);
+    inputNode.replaceWith(newNameNode);
+}
+
 TaskView.prototype.editHandler = function(e) {
     var editInput = document.createElement("input");
     var nameNode = e.target.previousSibling;

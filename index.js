@@ -9,7 +9,6 @@
     var appController = new AppController();
 
     var taskLayerBreadCrumbView = new TaskLayerBreadCrumbView();
-    console.log(taskLayerBreadCrumbView);
     var addTaskView = new AddTaskView();
     var taskView = new TaskView();
     var taskListView = new TaskListView();

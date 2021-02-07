@@ -17,16 +17,6 @@ var BREAD_CRUMB_NODE_REF = "task-level-bread-crumb";
 
 
 function AppView() {
-
-    this.updateTaskListNodes = function(updatedIncompleteList, updatedCompletedList) {
-        var appComponent = document.getElementById("app");
-        var incompleteList = appComponent.querySelector(`[node-ref=incomplete${_TASKS_LIST}]`);
-        var completedList = appComponent.querySelector(`[node-ref=completed${_TASKS_LIST}]`);
-
-        incompleteList.replaceWith(updatedIncompleteList);
-        completedList.replaceWith(updatedCompletedList);
-    }
-
     this.initApp = function(breadCrumb, taskAdder, incompleteList, completedList) {
         var appComponent = document.getElementById("app");
 
@@ -52,7 +42,6 @@ function AppHeading() {
 
 
 function TaskLayerBreadCrumbView() {
-
     this.getSubTaskOfLayerHandler = null;
 
     this.loadEventHandlers = function(handlers) {
@@ -61,15 +50,14 @@ function TaskLayerBreadCrumbView() {
 
     this.layerDownTo = function(taskID, breadCrumbComponent) {
         var lastChild = breadCrumbComponent.lastChild;
-        while(lastChild.getAttribute("layer-ID") == taskID) {
-            breadCrumbComponent.replaceChild(lastChild);
+        while(lastChild.getAttribute("layer-ID") !== taskID) {
+            breadCrumbComponent.removeChild(lastChild);
             lastChild = breadCrumbComponent.lastChild;
         }
         lastChild.lastChild.onclick = null;
     }
     this.layerUp = function(ID, name) {
         var breadCrumbComponent = document.querySelector(`[node-ref=${BREAD_CRUMB_NODE_REF}]`);
-
         var layerNode = document.createElement("span");
         var layerNameNode = document.createElement("span");
         var layerDividerNode = document.createElement("span");
@@ -83,11 +71,12 @@ function TaskLayerBreadCrumbView() {
         layerNameNode.className = "task-level-layer-name";
 
         breadCrumbComponent.lastChild.lastChild.onclick = this.getSubTaskOfLayerHandler;
-
         if(name !== "HOME") {
             layerNode.appendChild(layerDividerNode);
         }
         layerNode.appendChild(layerNameNode);
+
+        breadCrumbComponent.appendChild(layerNode);
     }
 
     this.getIDofLastLayer = function() {
@@ -119,13 +108,12 @@ function TaskLayerBreadCrumbView() {
 
 
 function AddTaskView() {
-
     this.addTaskButtonClickHandler = null;
     this.addTaskInputChangeHandler = null;
 
     this.loadEventHandlers = function(handlers) {
-        this.addTaskButtonClickHandler = handlers.addTaskButtonClick;
-        this.addTaskInputChangeHandler = handlers.addTaskInputChange;
+        this.addTaskButtonClickHandler = handlers.onAddTaskButtonClick;
+        this.addTaskInputChangeHandler = handlers.onAddTaskInputChange;
     }
 
     this.getComponent = function() {
@@ -154,7 +142,6 @@ function AddTaskView() {
 
 
 function TaskView() {
-
     this.removeTaskHandler = null;
     this.switchStatusHandler = null;
     this.addSubTasksHandler = null;
@@ -162,23 +149,19 @@ function TaskView() {
     this.getSubTasksHandler = null;
 
     this.loadEventHandlers = function(handlers) {
-        this.removeTaskHandler = handlers.removeTask;
-        this.switchStatusHandler = handlers.switchStatus;
-        this.addSubTasksHandler = handlers.addSubTask;
-        this.editTaskNameHandler = handlers.editTaskName;
-        this.getSubTasksHandler = handlers.getSubTasks;
+        this.removeTaskHandler = handlers.onRemoveTask;
+        this.switchStatusHandler = handlers.onChangeStatus;
+        this.addSubTasksHandler = handlers.onAddSubTasks;
+        this.editTaskNameHandler = handlers.onEditButtonClick;
+        this.getSubTasksHandler = handlers.onGetSubTasks;
+        this.editorInputChangeHandler = handlers.onEditorInputChange;
     }
 
     this.switchStatus = function(taskComponent, newStatus) {
         var statusSwitchButton = taskComponent.querySelector(".task-status-switch");
 
-        taskComponent.setAttribute("status", newStatus);
+        taskComponent.setAttribute("task-status", newStatus);
         statusSwitchButton.innerHTML = STATUS_SWITCH_NAME[newStatus];
-    }
-    this.addSubTask = function(taskComponent) {
-        var taskNameNode = taskComponent.querySelector(".task-name");
-
-        // taskNameNode.ad
     }
     this.editTaskName = function(taskComponent, newName) {
         var taskNameNode = taskComponent.querySelector(".task-name");
@@ -186,8 +169,26 @@ function TaskView() {
         taskComponent.setAttribute("task-name", newName);
         taskNameNode.innerText = newName;
     }
+    this.renderNewNameNode = function(inputNode) {
+        var taskComponent = inputNode.parentNode;
+        var newName = inputNode.value.trim() === "" ? taskComponent.getAttribute("task-name") : inputNode.value;
+        var newNameNode = document.createElement("span");
 
-    this.getComponent = function(ID, taskName, status, superTaskID, hasSubTasks) {
+        newNameNode.innerText = newName;
+        newNameNode.addEventListener("click", this.getSubTasksHandler);
+        newNameNode.className = "task-name";
+        taskComponent.setAttribute("task-name", newName);
+        inputNode.replaceWith(newNameNode);
+    }
+    this.renderEditorInput = function(nameNode) {
+        var editInput = document.createElement("input");
+
+        editInput.value = nameNode.innerText;
+        editInput.addEventListener('change', this.editorInputChangeHandler);
+        nameNode.replaceWith(editInput);
+    }
+
+    this.getComponent = function(ID, name, status, superTaskID, hasSubTasks) {
         var taskComponent = document.createElement("div");
         var addSubTasksNode = document.createElement("span");
         var taskName = document.createElement("span");
@@ -198,17 +199,16 @@ function TaskView() {
         taskComponent.className = "task-container";
         taskComponent.setAttribute("task-ID", ID);
         taskComponent.setAttribute("super-task-ID", superTaskID);
-        taskComponent.setAttribute("task-name", taskName);
+        taskComponent.setAttribute("task-name", name);
         taskComponent.setAttribute("task-status", status);
-        taskComponent.setAttribute("has-sub-tasks", hasSubTasks);
 
         addSubTasksNode.innerText = 'add';
         addSubTasksNode.className = 'material-icons';
-        addSubTasksNode.addEventListener('click', this.addSubTaskHandler);
+        addSubTasksNode.addEventListener('click', this.addSubTasksHandler);
 
         taskName.className = "task-name";
         if(hasSubTasks) taskName.addEventListener("click", this.getSubTasksHandler);
-        taskName.innerText = taskName;
+        taskName.innerText = name;
 
         taskNameEditButton.className = "task-edit";
         taskNameEditButton.addEventListener("click", this.editTaskNameHandler);
@@ -220,7 +220,7 @@ function TaskView() {
 
         taskStatusSwitchButton.className = "task-status-switch";
         taskStatusSwitchButton.addEventListener("click", this.switchStatusHandler);
-        taskStatusSwitchButton.innerText = STATUS_SWITCH_NAME[this.status];
+        taskStatusSwitchButton.innerText = STATUS_SWITCH_NAME[status];
         if(this.hasSubTasks) taskStatusSwitchButton.disabled = true;
 
         taskComponent.appendChild(addSubTasksNode);
@@ -236,13 +236,25 @@ function TaskView() {
 
 
 function TaskListView() {
-
     this.appendTaskNode = function(listType, taskNode) {
         var taskList = document.querySelector(`[node-ref=${listType}${_TASKS_LIST}]`);
+
+        taskList.appendChild(taskNode);
     }
+
     this.removeTaskNode = function(taskNode) {
         taskNode.parentNode.removeChild(taskNode);
     }
+
+    this.updateTaskListNodes = function(updatedIncompleteList, updatedCompletedList) {
+        var appComponent = document.getElementById("app");
+        var incompleteList = appComponent.querySelector(`[node-ref=incomplete${_TASKS_LIST}]`);
+        var completedList = appComponent.querySelector(`[node-ref=completed${_TASKS_LIST}]`);
+
+        incompleteList.replaceWith(updatedIncompleteList);
+        completedList.replaceWith(updatedCompletedList);
+    }
+
     this.getComponent = function(listType, taskNodes) {
         var taskListComponent = document.createElement("div");
         var headingNode = document.createElement("h4");

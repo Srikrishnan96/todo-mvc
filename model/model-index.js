@@ -3,6 +3,9 @@ var RESPOND_FAILURE = "FAILURE";
 var COMPLETED = "completed";
 var INCOMPLETE = "incomplete";
 
+var TASKS = "TASKS";
+var TASKSLISTS = "TASKSLISTS";
+
 
 function TaskModel(name, superTaskID, status = "incomplete", hasSubTasks = false, ID) {
     var ID = ID || Date.now().toString();
@@ -26,21 +29,22 @@ function TaskModel(name, superTaskID, status = "incomplete", hasSubTasks = false
 }
 Object.assign(TaskModel, (function() {
     function getTask(ID) {
-        var task = JSON.parse(localStorage.getItem("TASKS"))[ID];
+        var task = JSON.parse(localStorage.getItem(TASKS))[ID];
 
         if(!task) return null;
         return task;
     }
     function saveTask(updatedTask) {
-        var all_tasks = JSON.parse(localStorage.getItem("TASKS"));
+        var all_tasks = JSON.parse(localStorage.getItem(TASKS));
 
         all_tasks[updatedTask.ID] = updatedTask;
-        localStorage.setItem("TASKS", JSON.stringify(all_tasks));
+        localStorage.setItem(TASKS, JSON.stringify(all_tasks));
     }
 
     return  {
+        getTask, getTask,
         getTasks: function(IDs) {
-            var tasks = JSON.parse(localStorage.getItem("TASKS"));
+            var tasks = JSON.parse(localStorage.getItem(TASKS));
             var tasksData = [];
 
             IDs.forEach(function(id) {
@@ -52,17 +56,22 @@ Object.assign(TaskModel, (function() {
         createNewTask: function(name, superTaskID) {
             var taskObj = new TaskModel(name, superTaskID);
             var taskData = taskObj.getStorableTaskData();
+            var superTask = getTask(superTaskID);
 
-            saveTask(taskData.ID, taskData);
+            if(superTask) {
+                superTask.hasSubTasks = true;
+                saveTask(superTask);
+            }
+            saveTask(taskData);
+            TaskListModel.addTaskToList(superTaskID, taskData.ID);
             return taskData;
         },
         updateTask: function(property, newValue, ID) {
             var taskData = getTask(ID);
-
             function bubbleUpStatusChange(newTaskData) {
                 if(newTaskData.superTaskID === "HOME") return;
 
-                var taskList = TaskListModel.getTasksList(newTaskData.superTaskID);
+                var taskList = TaskListModel.getTasksID(newTaskData.superTaskID);
                 var isAllCompleted = (taskList).every(function(taskID) {
                     return getTask(taskID).status === COMPLETED;
                 });
@@ -87,8 +96,9 @@ Object.assign(TaskModel, (function() {
             return taskData;
         },
         deleteTask: function(ID) {
-            var all_tasks = JSON.parse(localStorage.getItem("TASKS"));
+            var all_tasks = JSON.parse(localStorage.getItem(TASKS));
             var lowerHierarchyTasksIDArr = null;
+            var deletedTask = Object.assign({}, all_tasks[ID]);
 
             if(all_tasks[ID].hasSubTasks) {
                 lowerHierarchyTasksIDArr = TaskListModel.removeLowerHierarchyTasks(ID);
@@ -98,9 +108,14 @@ Object.assign(TaskModel, (function() {
             }
             // if(all_tasks[ID].superTaskID)
             delete all_tasks[ID];
-
-            localStorage.setItem("TASKS", JSON.stringify(all_tasks));
-            return RESPOND_SUCCESS;
+            var resultList = TaskListModel.removeTaskFromList(deletedTask.superTaskID, ID);
+            if(resultList === null) {
+                var superTask = getTask(deletedTask.superTaskID);
+                superTask.hasSubTasks = false;
+                saveTask(superTask);
+            }
+            localStorage.setItem(TASKS, JSON.stringify(all_tasks));
+            return deletedTask;
         }
     }
 })());
@@ -114,61 +129,70 @@ function TaskListModel(superTaskID, subTaskList) {
 }
 Object.assign(TaskListModel, (function() {
     function saveTaskList(superTaskID, updatedTaskList) {
-        var all_tasks_lists = JSON.parse(localStorage.getItem("TASKSLISTS"));
+        var all_tasks_lists = JSON.parse(localStorage.getItem(TASKSLISTS));
 
         all_tasks_lists[superTaskID] = updatedTaskList;
-        localStorage.setItem("TASKSLISTS", JSON.stringify(all_tasks_lists));
+        localStorage.setItem(TASKSLISTS, JSON.stringify(all_tasks_lists));
     }
     function getSubTasks(superTaskID) {
-        var taskList = JSON.parse(localStorage.getItem("TASKSLISTS"))[superTaskID];
+        var taskList = JSON.parse(localStorage.getItem(TASKSLISTS))[superTaskID];
 
         if(!taskList) return null;
         return taskList;
     }
 
     return {
-        getTasksList: getSubTasks,
+        getTasksID: getSubTasks,
+        getTasksList: function(superTaskID) {
+            var tasksIDs = getSubTasks(superTaskID);
+
+            return TaskModel.getTasks(tasksIDs);
+        },
         addTaskToList: function(superTaskID, idOfTaskToAdd) {
-                var getSubTaskResponse = getSubTasks(superTaskID);
-                var taskList = !!getSubTaskResponse ? getSubTaskResponse : [];
+            var getSubTaskResponse = getSubTasks(superTaskID);
+            var taskList = !!getSubTaskResponse ? getSubTaskResponse : [];
 
-                taskList.push(subTaskID);
-                saveTaskList(superTaskID, taskList);
-                return idOfTaskToAdd;
-            },
+            taskList.push(idOfTaskToAdd);
+            saveTaskList(superTaskID, taskList);
+            return idOfTaskToAdd;
+        },
         removeTaskFromList: function(superTaskID, idOfTaskToDelete) {
-                var taskList = getSubTasks(superTaskID);
-                var newTaskList = taskList.filter(function(taskID) {
-                    return taskID !== idOfTaskToDelete;
-                });
-                if(taskList.length === newTaskList) return RESPOND_FAILURE;
-                saveTaskList(superTaskID, newTaskList.length ? newTaskList : null);
-                return RESPOND_SUCCESS;
-            },
+            var taskList = getSubTasks(superTaskID);
+            var newTaskList = taskList.filter(function(taskID) {
+                return taskID !== idOfTaskToDelete;
+            });
+            if(taskList.length === newTaskList) return RESPOND_FAILURE;
+            var resultList = newTaskList.length ? newTaskList : null;
+            if(superTaskID === "HOME") resultList = [];
+            saveTaskList(superTaskID, resultList);
+            return resultList;
+        },
         removeLowerHierarchyTasks: function(IDofTask) {
-                var all_tasks_lists = JSON.parse(localStorage.getItem("TASKSLISTS"));
-                var IDofTasksToDelete = [];
+            var all_tasks_lists = JSON.parse(localStorage.getItem(TASKSLISTS));
+            var IDofTasksToDelete = [];
 
-                function removeListsRecursively(ID, deleteIDs) {
-                    if(!!all_tasks_lists[ID]) {
-                        all_tasks_lists[ID].forEach(function(taskID) {
-                            deleteIDs.push(taskID);
-                            removeListsRecursively(ID, deleteIDs);
-                        });
-                    }
+            function removeListsRecursively(ID, deleteIDs) {
+                if(!!all_tasks_lists[ID]) {
+                    all_tasks_lists[ID].forEach(function(taskID) {
+                        deleteIDs.push(taskID);
+                        removeListsRecursively(taskID, deleteIDs);
+                    });
                 }
-                removeListsRecursively(IDofTask, IDofTasksToDelete);
-                IDofTasksToDelete.push(IDofTask);
-                return IDofTasksToDelete;
-            },
-        }
+            }
+            removeListsRecursively(IDofTask, IDofTasksToDelete);
+            IDofTasksToDelete.push(IDofTask);
+            return IDofTasksToDelete;
+        },
+    }
 })());
 
 
 
 function AppModel() {
     this.initAppDataBase = function() {
-        localStorage.setItem("TASKS", JSON.stringify({}));
-        localStorage.setItem("TASKSLISTS", JSON.stringify({HOME: null}));
+        if(!(localStorage.getItem(TASKS) && localStorage.getItem(TASKSLISTS))) {
+            localStorage.setItem(TASKS, JSON.stringify({}));
+            localStorage.setItem(TASKSLISTS, JSON.stringify({HOME: []}));
+        }
     }
 }
