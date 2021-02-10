@@ -106,15 +106,17 @@ Object.assign(TaskModel, (function() {
                     delete all_tasks[taskID];
                 });
             }
-            // if(all_tasks[ID].superTaskID)
+
             delete all_tasks[ID];
             var resultList = TaskListModel.removeTaskFromList(deletedTask.superTaskID, ID);
+
+            console.log(resultList);
+            localStorage.setItem(TASKS, JSON.stringify(all_tasks));
             if(resultList === null) {
                 var superTask = getTask(deletedTask.superTaskID);
                 superTask.hasSubTasks = false;
                 saveTask(superTask);
             }
-            localStorage.setItem(TASKS, JSON.stringify(all_tasks));
             return deletedTask;
         }
     }
@@ -162,8 +164,7 @@ Object.assign(TaskListModel, (function() {
                 return taskID !== idOfTaskToDelete;
             });
             if(taskList.length === newTaskList) return RESPOND_FAILURE;
-            var resultList = newTaskList.length ? newTaskList : null;
-            if(superTaskID === "HOME") resultList = [];
+            var resultList = newTaskList.length === 0 && superTaskID !== "HOME" ? null : newTaskList;
             saveTaskList(superTaskID, resultList);
             return resultList;
         },

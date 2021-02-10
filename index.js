@@ -14,15 +14,40 @@
     var taskListView = new TaskListView();
     var appView = new AppView();
 
-    taskLayerBreadCrumbController.initExternalAPIs(taskController, taskListController, taskLayerBreadCrumbView);
-    addTaskContoller.initExternalAPIs(taskController, addTaskView, taskLayerBreadCrumbController);
-    taskController.initExternalAPIs(taskListController, taskView, taskLayerBreadCrumbController);
-    taskListController.initExternalAPIs(taskListView, taskController, appController);
-    appController.initExternalAPIs(appView, taskLayerBreadCrumbController, addTaskContoller, taskListController);
+    taskLayerBreadCrumbController.initExternalAPIs(
+        taskController.getAPIforTaskLayerBreadCrumbController(),
+        taskLayerBreadCrumbView.getAPIforTaskLayerBreadCrumbController(),
+    );
+    addTaskContoller.initExternalAPIs(
+        taskController.getAPIforAddTaskController(),
+        addTaskView.getAPIforAddTaskController(),
+        taskLayerBreadCrumbController.getAPIforAddTaskController(),
+    );
+    taskController.initExternalAPIs(
+        taskListController.getAPIforTaskController(),
+        taskView.getAPIforTaskController(),
+        taskLayerBreadCrumbController.getAPIforTaskController(),
+    );
+    taskListController.initExternalAPIs(
+        taskListView.getAPIforTaskListController(),
+        taskController.getAPIforTaskListController(),
+    );
+    appController.initExternalAPIs(
+        appView.getAPIforAppController(),
+        taskLayerBreadCrumbController.getAPIforAppController(),
+        addTaskContoller.getAPIforAppController(),
+        taskListController.getAPIforAppController(),
+    );
 
-    taskLayerBreadCrumbView.loadEventHandlers(taskLayerBreadCrumbController);
-    addTaskView.loadEventHandlers(addTaskContoller);
-    taskView.loadEventHandlers(taskController);
+    taskLayerBreadCrumbView.loadEventHandlers(
+        taskLayerBreadCrumbController.getAPIforTaskLayerBreadCrumbView(),
+    );
+    addTaskView.loadEventHandlers(
+        addTaskContoller.getAPIforAddTaskView(),
+    );
+    taskView.loadEventHandlers(
+        taskController.getAPIforTaskView(),
+    );
 
     appModelInitObject.initAppDataBase();
     appController.runApp();
